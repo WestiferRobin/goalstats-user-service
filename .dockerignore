@@ -1,0 +1,16 @@
+**
+!requirements.txt
+!src/
+!src/**
+!alembic/
+!alembic/**
+!alembic.ini
+!tests/
+!tests/**
+!scripts/
+!scripts/**
+!pytest.ini
+!ruff.toml
+!mypy.ini
+**/__pycache__
+**/*.pyc

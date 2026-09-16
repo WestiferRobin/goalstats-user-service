@@ -1,0 +1,17 @@
+.DEFAULT_GOAL := help
+ENV ?= local
+PYTHON ?= python3
+export ENV MESSAGE
+export PYTHONDONTWRITEBYTECODE = 1
+
+include make/install.mk
+include make/doctor.mk
+include make/dev.mk
+include make/db.mk
+include make/test.mk
+include make/coverage.mk
+include make/ci.mk
+
+.PHONY: help
+help:
+	@$(PYTHON) scripts/workflow.py help
