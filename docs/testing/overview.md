@@ -6,12 +6,14 @@ INTEGRATION TESTS FOLLOW BOUNDARIES
 
 SMOKE TESTS FOLLOW BUILT SYSTEM
 
-ROUTERS: INTEGRATION
-
 Unit tests cover settings, schemas, service decisions, cache identity/payload logic,
-and safe domain errors. Integration tests exercise Flask binding/OpenAPI/errors,
-real PostgreSQL repositories/constraints/transactions, real Redis behavior, and
-Alembic history. No route unit suite is maintained.
+and safe domain errors. Router unit tests are provider-free and use explicit fake
+or injected collaborators to check HTTP adaptation, service command construction,
+status codes, response bodies, and Location/other headers where appropriate.
+
+Integration tests exercise Flask/flask-openapi3 binding, validation/error handling,
+OpenAPI, real PostgreSQL repositories/constraints/transactions, real Redis behavior,
+and Alembic history. Smoke tests exercise endpoints of the built application.
 
 `tests/fixtures/` owns settings, app factories, disposable database/Redis fixtures,
 named Item/service collaborators, and smoke clients. Root `conftest.py` registers
@@ -23,9 +25,9 @@ supported built-system entrypoint: direct smoke selection additionally requires 
 owned runtime configuration. Tooling tests live in `scripts/tests`; `make tooling`
 and certification run them separately from application unit/integration ownership.
 
-Provider fixtures require explicitly disposable resources. Missing provider URLs in
-manual pytest runs produce explained skips; Make provisions providers, so canonical
-integration/full/coverage runs must have zero skips. Invalid or unavailable supplied
+Provider fixtures require explicitly disposable resources. Missing or unverified ownership in
+manual pytest runs fails with guidance to start `make test-providers`; Make provisions
+providers automatically, so canonical integration/full/coverage runs have zero skips. Invalid or unavailable supplied
 providers fail. PostgreSQL uses a dedicated `goalstats_test_*` database within an
 ownership-verified disposable provider; that name alone is not proof. Redis keys
 use fixture prefixes, and tests that change server-wide ACL state require the same

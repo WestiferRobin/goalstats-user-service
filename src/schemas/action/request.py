@@ -1,17 +1,14 @@
-from marshmallow import fields, validate
+from pydantic import BaseModel, ConfigDict, Field
 
 from enums.action import ActionType
-from schemas.base import RequestSchema, identity, name
+from schemas.common import Identity, Name
 
 
-class NestedActionSchema(RequestSchema):
-    name = fields.String(required=True, validate=[validate.Length(min=1, max=200), name])
-    action_type = fields.Enum(ActionType, by_value=True, required=True, data_key="type")
+class ActionWriteRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", validate_by_name=False)
+    name: Name
+    action_type: ActionType = Field(alias="type")
 
 
-class CreateActionSchema(NestedActionSchema):
-    item_id = fields.UUID(required=True, validate=identity, data_key="itemId")
-
-
-class UpdateActionSchema(NestedActionSchema):
-    pass
+class ActionCreateRequest(ActionWriteRequest):
+    item_id: Identity = Field(alias="itemId")

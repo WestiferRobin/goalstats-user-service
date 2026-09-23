@@ -1,10 +1,15 @@
-from marshmallow import fields
+from pydantic import ConfigDict, Field, RootModel
 
-from schemas.action.request import CreateActionSchema
-from schemas.base import identity
+from schemas.action.request import ActionCreateRequest
+from schemas.common import Identity, Timestamp
 
 
-class ActionResponseSchema(CreateActionSchema):
-    id = fields.UUID(required=True, validate=identity)
-    created_at = fields.AwareDateTime(required=True, data_key="createdAt")
-    updated_at = fields.AwareDateTime(required=True, data_key="updatedAt")
+class ActionResponse(ActionCreateRequest):
+    model_config = ConfigDict(extra="forbid", frozen=True, from_attributes=True)
+    id: Identity
+    created_at: Timestamp = Field(alias="createdAt")
+    updated_at: Timestamp = Field(alias="updatedAt")
+
+
+class ActionListResponse(RootModel[list[ActionResponse]]):
+    pass

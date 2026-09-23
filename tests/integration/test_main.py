@@ -2,26 +2,64 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from unittest.mock import Mock
 
-from composition import get_database
+import main
 
 
-def test_factory_instances_have_independent_resources(app_factory, explicit_config):
+def test_factory_instances_have_independent_resources(app_factory, explicit_config, monkeypatch):
+    services = {"item": [], "action": []}
+
+    def track(kind, constructor):
+        def build(database, cache):
+            service = constructor(database, cache)
+            services[kind].append(service)
+            return service
+
+        return build
+
+    monkeypatch.setattr(main, "ItemService", track("item", main.ItemService))
+    monkeypatch.setattr(main, "ActionService", track("action", main.ActionService))
     first = app_factory(explicit_config)
     second = app_factory({**explicit_config, "OPENAPI_ENABLED": "false", "LOG_LEVEL": "ERROR"})
     assert (
         first.extensions["goalstats_database"].engine
         is not second.extensions["goalstats_database"].engine
     )
-    assert first.extensions["goalstats_api"] is not second.extensions["goalstats_api"]
+    assert first.api_doc is not second.api_doc
+    assert first.api_doc == second.api_doc
+    first.api_doc["info"]["description"] = "First application only"
+    assert "description" not in second.api_doc["info"]
     assert first.logger is not second.logger
     assert first.logger.level != second.logger.level
-    with first.app_context():
-        database = get_database()
-        assert get_database() is database
-        with second.app_context():
-            assert get_database() is not database
-        assert get_database() is database
+    assert (
+        set(first.extensions)
+        == set(second.extensions)
+        == {
+            "goalstats_settings",
+            "goalstats_database",
+            "goalstats_cache",
+            "goalstats_item_cache",
+            "goalstats_action_cache",
+        }
+    )
+    for key in first.extensions:
+        assert first.extensions[key] is not second.extensions[key]
+    for name in ("items", "actions", "health"):
+        assert first.blueprints[name] is not second.blueprints[name]
+    for kind in services:
+        assert len(services[kind]) == 2
+        assert services[kind][0] is not services[kind][1]
+        for app, service in zip((first, second), services[kind], strict=True):
+            assert service.database is app.extensions["goalstats_database"]
+            assert service.cache is app.extensions[f"goalstats_{kind}_cache"]
+            monkeypatch.setattr(service, "list", Mock(return_value=[]))
+        for index in (0, 1, 0, 1):
+            app = (first, second)[index]
+            other_calls = services[kind][1 - index].list.call_count
+            assert app.test_client().get(f"/{kind}s").json == []
+            assert services[kind][1 - index].list.call_count == other_calls
+        assert [service.list.call_count for service in services[kind]] == [2, 2]
     assert first.test_client().get("/swagger/v1/swagger.json").status_code == 200
     assert second.test_client().get("/swagger/v1/swagger.json").status_code == 404
 
@@ -45,16 +83,19 @@ def test_unavailable_database_is_unhealthy_without_provider_details(app):
 
 def test_openapi_preserves_problem_contract_and_excludes_operational_paths(app):
     spec = app.test_client().get("/swagger/v1/swagger.json").json
-    assert spec["openapi"] == "3.0.3"
+    assert spec["openapi"] == "3.1.0"
     assert "/health" not in spec["paths"] and "/ready" not in spec["paths"]
     assert "/items" in spec["paths"] and "/actions" in spec["paths"]
-    assert set(spec["components"]["schemas"]["ProblemDetails"]["required"]) == {
+    assert set(spec["components"]["schemas"]["ProblemDetailSchema"]["required"]) == {
         "type",
         "title",
         "status",
         "detail",
     }
-    assert "application/problem+json" in spec["components"]["responses"]["Problem"]["content"]
+    assert (
+        "application/problem+json"
+        in spec["paths"]["/items"]["get"]["responses"]["default"]["content"]
+    )
 
 
 def test_import_and_factory_have_no_filesystem_or_provider_side_effects(tmp_path):

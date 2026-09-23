@@ -26,7 +26,7 @@ Redis 7.4 versions/digests are shared across all three Compose files.
 ## Setup and normal development
 
 Run `make setup` twice safely: existing files and values are preserved. It verifies
-Docker/Compose, Make and host Python, creates only missing private environment files,
+Docker/Compose, Make and host Python, creates/reuses `.venv`, installs/verifies pinned requirements, creates missing private environment files,
 and prints next steps. Fresh setup starts no containers. Legacy migration may briefly
 start an existing PostgreSQL provider to verify its credentials, then restore its stopped state.
 Setup modifies no application source.
@@ -106,7 +106,7 @@ run after checking ownership. Pre-existing developer resources must be preserved
 
 ## Repository commands and checks
 
-Run `make doctor` after setup for read-only Python 3.12, Docker/Compose, repository
+Run `make doctor` after setup for read-only Python 3.12/venv/dependencies, TEST policy, ports, Docker/Compose, repository
 file, and private configuration checks. Missing configuration is a diagnostic;
 only `make setup` creates it. See [Make interface](../interface/make.md).
 
@@ -118,8 +118,8 @@ parent workspace adoption is a separate reviewed change.
 ## IDE DEVELOPMENT
 
 Use Python **3.12**, repository `.venv/bin/python`, and only `requirements.txt`.
-Run `python3.12 -m venv .venv`, `.venv/bin/python -m pip install -r requirements.txt`,
-then `make setup`. `make providers ENV=local` starts PostgreSQL and Redis only,
+Run `make setup` for the interpreter, dependencies and configuration.
+`make providers` starts PostgreSQL and Redis only,
 waits for health, verifies loopback bindings and PostgreSQL authentication, and
 validates canonical configuration. It reuses the existing LOCAL project and DB volume.
 It neither migrates nor starts Flask. Next run `make migrate ENV=local`, then
@@ -150,9 +150,10 @@ full LOCAL app: use `make stop ENV=local` before switching from full Docker LOCA
 Stop the host IDE process before stopping its providers. DEV/ordinary TEST do not
 publish provider ports.
 
-Build initially and after requirements or migration changes; migrate initially and
+Migration builds a missing runtime image automatically. Rebuild an existing image
+after requirements or migration changes; migrate initially and
 for new revisions. Host source edits need a restart, not a Docker rebuild. Repeat
-pip installation when requirements change. Docker DEV still requires source rebuilds.
+`make setup` when requirements change. Docker DEV still requires source rebuilds.
 `make migrate ENV=local` remains canonical; explicit host Alembic environment is
 optional. Host and Docker derive URLs from the same `.env.local` machine configuration.
 
@@ -167,9 +168,9 @@ IDE integration tests and must remain running. See [test ownership](../testing/o
 
 ### Direct startup diagnostics
 
-The direct-only `settings/host.py` helper reads one private, user-owned regular file,
+The explicit `settings/environment.py` LOCAL loader reads one private, user-owned regular file,
 never follows symlinks, evaluates shell text, discovers other dotenv files, or mutates
-`os.environ`. Supported process overrides win over host-file values and safe LOCAL
+`os.environ`. Supported process overrides win over machine-derived values and safe LOCAL
 defaults. Invalid overrides and non-loopback provider URLs fail; FLASK_DEBUG cannot
 enable Flask debugging. Missing configuration directs you to setup, then providers.
 PostgreSQL unavailability refuses startup with a credential-free message. Reachable
