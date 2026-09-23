@@ -1,12 +1,13 @@
-from marshmallow import fields, validate
+from pydantic import BaseModel, ConfigDict
 
 from enums.item import ItemStatus
-from schemas.base import RequestSchema, name
+from schemas.common import Name
 
 
-class CreateItemSchema(RequestSchema):
-    name = fields.String(required=True, validate=[validate.Length(min=1, max=200), name])
+class ItemCreateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: Name
 
 
-class UpdateItemSchema(CreateItemSchema):
-    status = fields.Enum(ItemStatus, by_value=True, required=True)
+class ItemUpdateRequest(ItemCreateRequest):
+    status: ItemStatus

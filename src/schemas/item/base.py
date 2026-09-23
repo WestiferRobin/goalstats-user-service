@@ -1,22 +1,8 @@
-from dataclasses import dataclass
-from datetime import datetime
-from typing import TYPE_CHECKING
-from uuid import UUID
+from pydantic import BaseModel, ConfigDict
 
-from enums.item import ItemStatus
-
-if TYPE_CHECKING:
-    from models import Item
+from schemas.common import Identity
 
 
-@dataclass(frozen=True)
-class ItemResult:
-    id: UUID
-    name: str
-    status: ItemStatus
-    created_at: datetime
-    updated_at: datetime
-
-    @classmethod
-    def from_model(cls, item: "Item") -> "ItemResult":
-        return cls(item.id, item.name, item.status, item.created_at, item.updated_at)
+class ItemPathSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    item_id: Identity
